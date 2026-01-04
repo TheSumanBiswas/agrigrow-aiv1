@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -5,248 +6,265 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+async function sha256Base64(input: string) {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hashArray = Array.from(new Uint8Array(digest));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
-  try {
-    const { imageBase64 } = await req.json();
-    
-    if (!imageBase64) {
-      console.error("No image provided in request");
-      return new Response(
-        JSON.stringify({ error: "No image provided" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+async function callLovableAI({
+  lovableKey,
+  imageDataUrl,
+  imageId,
+}: {
+  lovableKey: string;
+  imageDataUrl: string;
+  imageId: string;
+}) {
+  const systemPrompt = `You are an expert agricultural scientist and plant pathologist.
 
-    // Use Google AI Studio Gemini API (supports API keys, unlike Vertex AI which requires OAuth2)
-    const GOOGLE_API_KEY = Deno.env.get("GOOGLE_CLOUD_API_KEY");
+You MUST analyze ONLY the provided image. Do not reuse previous answers. Treat every request as unique.
 
-    if (!GOOGLE_API_KEY) {
-      console.error("Missing Google AI API key");
-      throw new Error("Google AI API key is not configured");
-    }
+First, validate the input image:
+- If no plant/leaf is visible OR the image is too blurry/dark/overexposed to inspect symptoms, respond as Unable to Analyze.
 
-    // Extract base64 data and mime type from data URL
-    let base64Data = imageBase64;
-    let mimeType = "image/jpeg";
-    
-    if (imageBase64.startsWith("data:")) {
-      const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
-      if (matches) {
-        mimeType = matches[1];
-        base64Data = matches[2];
-      }
-    }
-
-    console.log("Processing image with mime type:", mimeType);
-    console.log("Image data length:", base64Data.length);
-
-    // Google AI Studio Gemini API endpoint (supports API keys)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`;
-
-    const systemPrompt = `You are an expert agricultural scientist and plant pathologist with decades of experience. Your task is to carefully analyze the provided plant leaf image.
-
-CRITICAL INSTRUCTIONS:
-1. First, verify if the image actually contains a plant leaf or plant part that can be analyzed.
-2. If the image is blurry, too dark, too bright, or the plant is not clearly visible, you MUST indicate this.
-3. If the image does not contain a plant at all (e.g., random objects, animals, text), you MUST indicate this.
-4. Analyze the SPECIFIC visible symptoms in THIS particular image - do NOT give generic responses.
-5. Look for specific patterns: color changes, spots, wilting, holes, discoloration patterns, texture changes.
-
-RESPONSE FORMAT - You MUST respond with a valid JSON object (no markdown, no code blocks):
-
-If the image IS analyzable and contains a plant with visible issues:
+Return ONLY valid JSON (no markdown, no code blocks) in this shape:
 {
-  "isAnalyzable": true,
-  "problemName": "Specific disease/pest/deficiency name based on visible symptoms",
-  "confidence": [0-100 based on symptom clarity and your certainty],
-  "cause": "Clear explanation of what caused this specific problem based on visible symptoms",
-  "organicTreatment": "Detailed organic treatment with specific instructions",
-  "chemicalTreatment": "Chemical options with product recommendations and application methods",
-  "preventionTips": ["Tip 1", "Tip 2", "Tip 3", "Tip 4", "Tip 5"],
+  "problemName": string,
+  "confidence": number,
+  "cause": string,
+  "organicTreatment": string,
+  "chemicalTreatment": string,
+  "preventionTips": string[],
   "severity": "low" | "medium" | "high"
 }
 
-If the plant appears healthy with no issues:
-{
-  "isAnalyzable": true,
-  "problemName": "Healthy Plant",
-  "confidence": [confidence level],
-  "cause": "No visible signs of disease, pest damage, or nutrient deficiency detected",
-  "organicTreatment": "Continue current care practices. Maintain proper watering and nutrition.",
-  "chemicalTreatment": "No chemical treatment needed for healthy plants.",
-  "preventionTips": ["Regular monitoring", "Proper watering schedule", "Adequate sunlight", "Balanced fertilization", "Good air circulation"],
-  "severity": "low"
-}
+Rules:
+- If image is not analyzable: problemName MUST be "Unable to Analyze" and confidence MUST be 0, with a specific cause.
+- If healthy: problemName MUST be "Healthy Plant".
+- Be specific to visible symptoms in THIS image.`;
 
-If the image is NOT analyzable (blurry, dark, no plant visible, wrong subject):
-{
-  "isAnalyzable": false,
-  "problemName": "Unable to Analyze",
-  "confidence": 0,
-  "cause": "[Specific reason - e.g., 'The image is too blurry to identify plant features' OR 'No plant is visible in this image' OR 'The image is too dark to see the plant clearly' OR 'This appears to be [non-plant object] rather than a plant']",
-  "organicTreatment": "Please take a new photo with: good lighting, close-up of the affected leaf, camera in focus",
-  "chemicalTreatment": "Unable to recommend treatment without a clear plant image",
-  "preventionTips": ["Use natural daylight", "Hold camera steady", "Focus on the affected area", "Include both healthy and affected parts if possible", "Avoid shadows on the leaf"],
-  "severity": "low"
-}
+  const userPrompt = `Image ID: ${imageId}
+Analyze this plant image. If it is not a clear plant/leaf photo, return Unable to Analyze with the reason and photo retake tips.`;
 
-Remember: Analyze ONLY what you can SEE in this specific image. Be accurate and specific.`;
-
-    const requestBody = {
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: systemPrompt
-            },
-            {
-              text: "Analyze this plant leaf image carefully. Describe exactly what you see and provide an accurate diagnosis based on the visible symptoms. If you cannot analyze it properly, explain why."
-            },
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data
-              }
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 32,
-        topP: 0.95,
-        maxOutputTokens: 2048
-      }
-    };
-
-    console.log("Sending request to Gemini API...");
-    
-    const response = await fetch(geminiEndpoint, {
+  // Retry a couple times on 429 to reduce "no more errors" experience.
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${lovableKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userPrompt },
+              { type: "image_url", image_url: { url: imageDataUrl } },
+            ],
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 1200,
+      }),
     });
 
-    console.log("Gemini API response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 400 && errorText.includes("API_KEY_INVALID")) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your Google AI API key." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Authentication failed. Please check your Google AI API key." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    if (resp.status === 429 && attempt < maxAttempts) {
+      const backoffMs = 800 * attempt;
+      console.warn(`Lovable AI rate limited (429). Retrying in ${backoffMs}ms (attempt ${attempt}/${maxAttempts})`);
+      await new Promise((r) => setTimeout(r, backoffMs));
+      continue;
     }
 
-    const data = await response.json();
-    console.log("Gemini API response received");
-    
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = await resp.text();
 
-    if (!content) {
-      console.error("No content in Vertex AI response:", JSON.stringify(data));
-      throw new Error("No response from AI model");
+    if (!resp.ok) {
+      console.error("Lovable AI error:", resp.status, text);
+      if (resp.status === 429) {
+        return {
+          ok: false,
+          status: 429,
+          error: "Rate limit exceeded. Please try again in a moment.",
+        };
+      }
+      if (resp.status === 402) {
+        return {
+          ok: false,
+          status: 402,
+          error: "AI credits required. Please add credits to continue.",
+        };
+      }
+      return { ok: false, status: 500, error: "AI service error. Please try again." };
     }
 
-    console.log("AI Response content:", content.substring(0, 500));
-
-    // Parse the JSON response from the AI
-    let diagnosis;
+    let data: any;
     try {
-      // Clean the response - remove any markdown code blocks if present
-      let cleanContent = content.trim();
-      if (cleanContent.startsWith("```json")) {
-        cleanContent = cleanContent.slice(7);
-      }
-      if (cleanContent.startsWith("```")) {
-        cleanContent = cleanContent.slice(3);
-      }
-      if (cleanContent.endsWith("```")) {
-        cleanContent = cleanContent.slice(0, -3);
-      }
-      cleanContent = cleanContent.trim();
-      
-      diagnosis = JSON.parse(cleanContent);
-      console.log("Successfully parsed diagnosis:", diagnosis.problemName, "Confidence:", diagnosis.confidence);
-      
-      // Validate required fields
-      if (!diagnosis.problemName || diagnosis.confidence === undefined) {
-        throw new Error("Missing required fields in AI response");
-      }
-      
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError, "Content:", content);
-      // Return a fallback "unable to analyze" response
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Failed to parse AI gateway JSON:", e, text.slice(0, 500));
+      return { ok: false, status: 500, error: "AI response parsing error." };
+    }
+
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error("No content in AI response:", JSON.stringify(data).slice(0, 800));
+      return { ok: false, status: 500, error: "No response from AI model." };
+    }
+
+    return { ok: true, status: 200, content };
+  }
+
+  return { ok: false, status: 429, error: "Rate limit exceeded. Please try again in a moment." };
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { imageBase64 } = await req.json();
+
+    if (!imageBase64 || typeof imageBase64 !== "string") {
+      return new Response(JSON.stringify({ error: "No image provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      console.error("Missing LOVABLE_API_KEY");
+      return new Response(JSON.stringify({ error: "AI backend is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const imageId = await sha256Base64(imageBase64.slice(0, 2500));
+    console.log("Analyze request imageId:", imageId);
+
+    const ai = await callLovableAI({
+      lovableKey: LOVABLE_API_KEY,
+      imageDataUrl: imageBase64,
+      imageId,
+    });
+
+    if (!ai.ok) {
+      return new Response(
+        JSON.stringify({
+          error: ai.error,
+          diagnosis: {
+            problemName: "Unable to Analyze",
+            confidence: 0,
+            cause: ai.error,
+            organicTreatment:
+              "Please try again with a clear close-up photo in good lighting, focused on the leaf.",
+            chemicalTreatment: "Unable to recommend treatment without analysis.",
+            preventionTips: [
+              "Use natural daylight",
+              "Hold the camera steady",
+              "Focus on the affected area",
+              "Avoid shadows and glare",
+              "Fill the frame with the leaf",
+            ],
+            severity: "low",
+          },
+        }),
+        {
+          status: ai.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Parse model JSON
+    let diagnosis: any;
+    try {
+      let clean = String(ai.content).trim();
+      if (clean.startsWith("```")) clean = clean.replace(/^```[a-zA-Z]*\n?/, "");
+      if (clean.endsWith("```")) clean = clean.replace(/```\s*$/, "");
+      diagnosis = JSON.parse(clean);
+    } catch (e) {
+      console.error("Failed to parse model JSON:", e, String(ai.content).slice(0, 800));
       diagnosis = {
-        isAnalyzable: false,
         problemName: "Unable to Analyze",
         confidence: 0,
-        cause: "We encountered an issue processing the image. Please try uploading a different photo with clear visibility of the plant leaf.",
-        organicTreatment: "Please take a new photo with good lighting and ensure the leaf is in focus.",
-        chemicalTreatment: "Unable to provide recommendations without a clear analysis.",
+        cause: "Could not read the analysis. Please try again with a clearer image.",
+        organicTreatment:
+          "Retake the photo in good light, close-up, with the leaf in focus.",
+        chemicalTreatment: "Unable to recommend treatment without a clear analysis.",
         preventionTips: [
-          "Use natural daylight for best results",
-          "Hold the camera steady to avoid blur",
-          "Get close to the affected area",
-          "Ensure the leaf fills most of the frame",
-          "Try from a different angle"
+          "Use natural daylight",
+          "Hold the camera steady",
+          "Focus on the affected area",
+          "Avoid shadows and glare",
+          "Fill the frame with the leaf",
         ],
-        severity: "low"
+        severity: "low",
       };
     }
 
-    // Remove the isAnalyzable field from the response to match the expected interface
-    const { isAnalyzable, ...diagnosisResult } = diagnosis;
+    // Hard validation + normalize
+    const normalized = {
+      problemName: String(diagnosis?.problemName ?? "Unable to Analyze"),
+      confidence: Number.isFinite(Number(diagnosis?.confidence))
+        ? Math.max(0, Math.min(100, Number(diagnosis.confidence)))
+        : 0,
+      cause: String(diagnosis?.cause ?? ""),
+      organicTreatment: String(diagnosis?.organicTreatment ?? ""),
+      chemicalTreatment: String(diagnosis?.chemicalTreatment ?? ""),
+      preventionTips: Array.isArray(diagnosis?.preventionTips)
+        ? diagnosis.preventionTips.map((x: any) => String(x)).slice(0, 8)
+        : [],
+      severity: ((): "low" | "medium" | "high" => {
+        const s = String(diagnosis?.severity ?? "low").toLowerCase();
+        if (s === "medium" || s === "high") return s;
+        return "low";
+      })(),
+    };
 
-    return new Response(
-      JSON.stringify({ diagnosis: diagnosisResult }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    if (normalized.problemName === "Unable to Analyze") {
+      normalized.confidence = 0;
+      if (!normalized.cause) {
+        normalized.cause =
+          "The image is not clear enough to identify plant symptoms. Please retake the photo.";
+      }
+    }
 
+    return new Response(JSON.stringify({ diagnosis: normalized }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in analyze-plant function:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error occurred",
         diagnosis: {
-          problemName: "Analysis Error",
+          problemName: "Unable to Analyze",
           confidence: 0,
           cause: "An error occurred while analyzing your image. Please try again.",
-          organicTreatment: "Please try uploading a different image or check your internet connection.",
-          chemicalTreatment: "Unable to provide recommendations due to analysis error.",
+          organicTreatment:
+            "Please try again with a clear photo in good lighting, focused on the leaf.",
+          chemicalTreatment: "Unable to recommend treatment without analysis.",
           preventionTips: [
-            "Ensure you have a stable internet connection",
-            "Try a smaller image file",
-            "Make sure the image is in JPG or PNG format",
-            "Refresh the page and try again"
+            "Use natural daylight",
+            "Hold the camera steady",
+            "Focus on the affected area",
+            "Avoid shadows and glare",
+            "Fill the frame with the leaf",
           ],
-          severity: "low"
-        }
+          severity: "low",
+        },
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
