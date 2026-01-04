@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, Leaf, Shield, CheckCircle, Beaker, SprayCan, Info } from "lucide-react";
+import { AlertTriangle, Leaf, Shield, CheckCircle, Beaker, Info, Camera, XCircle } from "lucide-react";
 import { DiagnosisResult } from "./ScanSection";
+import { Button } from "./ui/button";
 
 interface ResultSectionProps {
   result: DiagnosisResult | null;
@@ -9,7 +10,13 @@ interface ResultSectionProps {
 const ResultSection = ({ result }: ResultSectionProps) => {
   if (!result) return null;
 
+  const isUnableToAnalyze = result.problemName === "Unable to Analyze" || result.problemName === "Analysis Error";
+  const isHealthyPlant = result.problemName === "Healthy Plant";
+
   const getSeverityColor = (severity: string) => {
+    if (isUnableToAnalyze) {
+      return "bg-accent/10 text-accent-foreground border-accent/30";
+    }
     switch (severity) {
       case "low":
         return "bg-primary/10 text-primary border-primary/30";
@@ -23,6 +30,9 @@ const ResultSection = ({ result }: ResultSectionProps) => {
   };
 
   const getSeverityIcon = (severity: string) => {
+    if (isUnableToAnalyze) {
+      return XCircle;
+    }
     switch (severity) {
       case "low":
         return CheckCircle;
@@ -37,6 +47,13 @@ const ResultSection = ({ result }: ResultSectionProps) => {
 
   const SeverityIcon = getSeverityIcon(result.severity);
 
+  const scrollToScan = () => {
+    const element = document.querySelector("#scan");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <section id="results" className="py-20 bg-nature-gradient">
       <div className="container mx-auto px-4">
@@ -50,7 +67,10 @@ const ResultSection = ({ result }: ResultSectionProps) => {
             Diagnosis <span className="text-gradient-primary">Results</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            Here's what we found and how you can treat it
+            {isUnableToAnalyze 
+              ? "We need a better image to analyze your plant"
+              : "Here's what we found and how you can treat it"
+            }
           </p>
         </motion.div>
 
@@ -60,12 +80,20 @@ const ResultSection = ({ result }: ResultSectionProps) => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="nature-card p-6 md:p-8"
+            className={`nature-card p-6 md:p-8 ${isUnableToAnalyze ? 'border-accent/50' : ''}`}
           >
             <div className="flex flex-col md:flex-row md:items-start gap-6">
               <div className="flex-shrink-0">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Leaf className="w-8 h-8 text-primary" />
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+                  isUnableToAnalyze ? 'bg-accent/10' : isHealthyPlant ? 'bg-primary/10' : 'bg-destructive/10'
+                }`}>
+                  {isUnableToAnalyze ? (
+                    <Camera className="w-8 h-8 text-accent" />
+                  ) : isHealthyPlant ? (
+                    <CheckCircle className="w-8 h-8 text-primary" />
+                  ) : (
+                    <Leaf className="w-8 h-8 text-destructive" />
+                  )}
                 </div>
               </div>
               <div className="flex-grow">
@@ -75,25 +103,37 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                   </h3>
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${getSeverityColor(result.severity)}`}>
                     <SeverityIcon className="w-4 h-4" />
-                    {result.severity.charAt(0).toUpperCase() + result.severity.slice(1)} Severity
+                    {isUnableToAnalyze ? "Image Issue" : `${result.severity.charAt(0).toUpperCase() + result.severity.slice(1)} Severity`}
                   </span>
                 </div>
                 
-                {/* Confidence Bar */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Confidence Level</span>
-                    <span className="font-semibold text-primary">{result.confidence}%</span>
+                {/* Confidence Bar - Hide for unable to analyze */}
+                {!isUnableToAnalyze && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Confidence Level</span>
+                      <span className="font-semibold text-primary">{result.confidence}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${result.confidence}%` }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${result.confidence}%` }}
-                      transition={{ duration: 1, delay: 0.5 }}
-                    />
+                )}
+
+                {/* Show "Try Again" button for unable to analyze */}
+                {isUnableToAnalyze && (
+                  <div className="mt-4">
+                    <Button variant="nature" onClick={scrollToScan}>
+                      <Camera className="w-4 h-4" />
+                      Take New Photo
+                    </Button>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -111,7 +151,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
               </div>
               <div>
                 <h4 className="font-heading font-semibold text-lg text-foreground mb-2">
-                  ⚠️ Cause
+                  {isUnableToAnalyze ? "📷 What Went Wrong" : "⚠️ Cause"}
                 </h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {result.cause}
@@ -120,50 +160,52 @@ const ResultSection = ({ result }: ResultSectionProps) => {
             </div>
           </motion.div>
 
-          {/* Treatment Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Organic Treatment */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="nature-card p-6"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Leaf className="w-5 h-5 text-primary" />
+          {/* Treatment Cards Grid - Only show for analyzable results */}
+          {!isUnableToAnalyze && (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Organic Treatment */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="nature-card p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Leaf className="w-5 h-5 text-primary" />
+                  </div>
+                  <h4 className="font-heading font-semibold text-lg text-foreground">
+                    🌿 Organic Treatment
+                  </h4>
                 </div>
-                <h4 className="font-heading font-semibold text-lg text-foreground">
-                  🌿 Organic Treatment
-                </h4>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {result.organicTreatment}
-              </p>
-            </motion.div>
+                <p className="text-muted-foreground leading-relaxed">
+                  {result.organicTreatment}
+                </p>
+              </motion.div>
 
-            {/* Chemical Treatment */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="nature-card p-6"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-sky/10 flex items-center justify-center">
-                  <Beaker className="w-5 h-5 text-sky" />
+              {/* Chemical Treatment */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="nature-card p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-sky/10 flex items-center justify-center">
+                    <Beaker className="w-5 h-5 text-sky" />
+                  </div>
+                  <h4 className="font-heading font-semibold text-lg text-foreground">
+                    💊 Chemical Treatment
+                  </h4>
                 </div>
-                <h4 className="font-heading font-semibold text-lg text-foreground">
-                  💊 Chemical Treatment
-                </h4>
-              </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {result.chemicalTreatment}
-              </p>
-            </motion.div>
-          </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  {result.chemicalTreatment}
+                </p>
+              </motion.div>
+            </div>
+          )}
 
-          {/* Prevention Tips */}
+          {/* Prevention Tips / Photo Tips */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -175,7 +217,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                 <Shield className="w-5 h-5 text-primary" />
               </div>
               <h4 className="font-heading font-semibold text-lg text-foreground">
-                🛡️ Prevention Tips
+                {isUnableToAnalyze ? "📸 Tips for Better Photos" : "🛡️ Prevention Tips"}
               </h4>
             </div>
             <ul className="space-y-3">

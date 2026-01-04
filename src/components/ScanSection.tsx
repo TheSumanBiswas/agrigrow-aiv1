@@ -83,7 +83,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
         throw new Error(error.message || 'Failed to analyze image');
       }
 
-      if (data.error) {
+      if (data.error && !data.diagnosis) {
         throw new Error(data.error);
       }
 
@@ -91,10 +91,24 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
       
       onScanComplete(diagnosis);
       
-      toast({
-        title: "Analysis Complete!",
-        description: "We've identified the issue and prepared treatment recommendations.",
-      });
+      // Show appropriate toast based on analysis result
+      if (diagnosis.problemName === "Unable to Analyze" || diagnosis.problemName === "Analysis Error") {
+        toast({
+          title: "Image Issue Detected",
+          description: diagnosis.cause || "Please try uploading a clearer image of the plant.",
+          variant: "destructive",
+        });
+      } else if (diagnosis.problemName === "Healthy Plant") {
+        toast({
+          title: "Good News! 🌿",
+          description: "Your plant appears to be healthy!",
+        });
+      } else {
+        toast({
+          title: "Analysis Complete!",
+          description: `Detected: ${diagnosis.problemName} (${diagnosis.confidence}% confidence)`,
+        });
+      }
     } catch (error) {
       console.error('Analysis error:', error);
       toast({
