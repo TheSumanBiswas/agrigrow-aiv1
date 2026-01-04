@@ -32,7 +32,7 @@ First, validate the input image:
 Return ONLY valid JSON (no markdown, no code blocks) in this shape:
 {
   "problemName": string,
-  "confidence": number,
+  "confidence": number (0-100),
   "cause": string,
   "organicTreatment": string,
   "chemicalTreatment": string,
@@ -40,9 +40,18 @@ Return ONLY valid JSON (no markdown, no code blocks) in this shape:
   "severity": "low" | "medium" | "high"
 }
 
+CONFIDENCE SCORING RULES (critical - be realistic):
+- 90-100%: Only for textbook-perfect symptoms with classic, unmistakable visual markers
+- 75-89%: Clear symptoms present but could match 1-2 similar diseases
+- 60-74%: Likely diagnosis but symptoms are partial or could indicate multiple issues
+- 40-59%: Educated guess based on limited visible evidence
+- 20-39%: Very uncertain, early/mild symptoms, or image quality affects clarity
+- 0-19%: Unable to analyze or almost no confidence
+
 Rules:
-- If image is not analyzable: problemName MUST be "Unable to Analyze" and confidence MUST be 0, with a specific cause.
-- If healthy: problemName MUST be "Healthy Plant".
+- If image is not analyzable: problemName MUST be "Unable to Analyze" and confidence MUST be 0
+- If healthy: problemName MUST be "Healthy Plant", confidence should reflect how clearly healthy it appears (70-95%)
+- For diseases: Be conservative. Do NOT default to high confidence. Evaluate actual symptom clarity.
 - Be specific to visible symptoms in THIS image.`;
 
   const userPrompt = `Image ID: ${imageId}
