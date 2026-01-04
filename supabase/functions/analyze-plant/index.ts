@@ -45,7 +45,7 @@ serve(async (req) => {
     console.log("Image data length:", base64Data.length);
 
     // Google AI Studio Gemini API endpoint (supports API keys)
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`;
 
     const systemPrompt = `You are an expert agricultural scientist and plant pathologist with decades of experience. Your task is to carefully analyze the provided plant leaf image.
 
