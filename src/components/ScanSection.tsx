@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Camera, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ScanSectionProps {
   onScanComplete: (result: DiagnosisResult) => void;
@@ -73,33 +74,37 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
 
     setIsAnalyzing(true);
 
-    // Simulate AI analysis with realistic delay
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-plant', {
+        body: { imageBase64: image }
+      });
 
-    // Mock result - in production, this would call the actual AI API
-    const mockResult: DiagnosisResult = {
-      problemName: "Early Blight (Alternaria solani)",
-      confidence: 94,
-      cause: "Fungal infection caused by warm, humid conditions and poor air circulation. Often spreads through contaminated soil or infected plant debris.",
-      organicTreatment: "Apply neem oil spray (2-3 tablespoons per gallon of water) every 7-10 days. Remove and destroy infected leaves immediately. Mulch around plants to prevent soil splash.",
-      chemicalTreatment: "Use chlorothalonil or mancozeb-based fungicide as per label instructions. Apply preventatively during humid conditions.",
-      preventionTips: [
-        "Rotate crops every 2-3 years",
-        "Water at the base of plants, avoid wetting leaves",
-        "Ensure proper spacing for air circulation",
-        "Remove plant debris at end of season",
-        "Use disease-resistant varieties when available",
-      ],
-      severity: "medium",
-    };
+      if (error) {
+        throw new Error(error.message || 'Failed to analyze image');
+      }
 
-    setIsAnalyzing(false);
-    onScanComplete(mockResult);
-    
-    toast({
-      title: "Analysis Complete!",
-      description: "We've identified the issue and prepared treatment recommendations.",
-    });
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const diagnosis = data.diagnosis as DiagnosisResult;
+      
+      onScanComplete(diagnosis);
+      
+      toast({
+        title: "Analysis Complete!",
+        description: "We've identified the issue and prepared treatment recommendations.",
+      });
+    } catch (error) {
+      console.error('Analysis error:', error);
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Unable to analyze the image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
