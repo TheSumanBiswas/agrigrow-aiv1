@@ -21,13 +21,12 @@ serve(async (req) => {
       );
     }
 
-    const GOOGLE_CLOUD_PROJECT_ID = Deno.env.get("GOOGLE_CLOUD_PROJECT_ID");
-    const GOOGLE_CLOUD_REGION = Deno.env.get("GOOGLE_CLOUD_REGION") || "us-central1";
-    const GOOGLE_CLOUD_API_KEY = Deno.env.get("GOOGLE_CLOUD_API_KEY");
+    // Use Google AI Studio Gemini API (supports API keys, unlike Vertex AI which requires OAuth2)
+    const GOOGLE_API_KEY = Deno.env.get("GOOGLE_CLOUD_API_KEY");
 
-    if (!GOOGLE_CLOUD_PROJECT_ID || !GOOGLE_CLOUD_API_KEY) {
-      console.error("Missing Google Cloud credentials");
-      throw new Error("Google Cloud credentials are not configured");
+    if (!GOOGLE_API_KEY) {
+      console.error("Missing Google AI API key");
+      throw new Error("Google AI API key is not configured");
     }
 
     // Extract base64 data and mime type from data URL
@@ -45,8 +44,8 @@ serve(async (req) => {
     console.log("Processing image with mime type:", mimeType);
     console.log("Image data length:", base64Data.length);
 
-    // Vertex AI Gemini API endpoint
-    const vertexEndpoint = `https://${GOOGLE_CLOUD_REGION}-aiplatform.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT_ID}/locations/${GOOGLE_CLOUD_REGION}/publishers/google/models/gemini-1.5-flash:generateContent?key=${GOOGLE_CLOUD_API_KEY}`;
+    // Google AI Studio Gemini API endpoint (supports API keys)
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
 
     const systemPrompt = `You are an expert agricultural scientist and plant pathologist with decades of experience. Your task is to carefully analyze the provided plant leaf image.
 
@@ -125,9 +124,9 @@ Remember: Analyze ONLY what you can SEE in this specific image. Be accurate and 
       }
     };
 
-    console.log("Sending request to Vertex AI...");
+    console.log("Sending request to Gemini API...");
     
-    const response = await fetch(vertexEndpoint, {
+    const response = await fetch(geminiEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -135,11 +134,11 @@ Remember: Analyze ONLY what you can SEE in this specific image. Be accurate and 
       body: JSON.stringify(requestBody),
     });
 
-    console.log("Vertex AI response status:", response.status);
+    console.log("Gemini API response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Vertex AI error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -147,17 +146,23 @@ Remember: Analyze ONLY what you can SEE in this specific image. Be accurate and 
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 400 && errorText.includes("API_KEY_INVALID")) {
         return new Response(
-          JSON.stringify({ error: "Authentication failed. Please check your Google Cloud credentials." }),
+          JSON.stringify({ error: "Invalid API key. Please check your Google AI API key." }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`Vertex AI error: ${response.status} - ${errorText}`);
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ error: "Authentication failed. Please check your Google AI API key." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("Vertex AI response received");
+    console.log("Gemini API response received");
     
     const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
