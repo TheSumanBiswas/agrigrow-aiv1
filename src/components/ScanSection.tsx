@@ -4,6 +4,7 @@ import { Camera, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { fileToCompressedDataUrl } from "@/lib/image/resizeImage";
 
 interface ScanSectionProps {
   onScanComplete: (result: DiagnosisResult) => void;
@@ -57,12 +58,24 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
     }
   };
 
-  const processImage = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImage(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+  const processImage = async (file: File) => {
+    try {
+      // Reduce payload size to prevent browser/network failures when invoking the backend function.
+      // This keeps uploads snappy and avoids "Failed to fetch" caused by very large base64 bodies.
+      const compressed = await fileToCompressedDataUrl(file, {
+        maxSize: 1280,
+        mimeType: "image/jpeg",
+        quality: 0.82,
+      });
+      setImage(compressed);
+    } catch (e) {
+      console.error("Image processing failed:", e);
+      toast({
+        title: "Image processing failed",
+        description: "Please try a different image.",
+        variant: "destructive",
+      });
+    }
   };
 
   const clearImage = () => {
