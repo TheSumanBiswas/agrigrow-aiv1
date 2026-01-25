@@ -87,51 +87,80 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
 
     setIsAnalyzing(true);
 
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-plant', {
-        body: { imageBase64: image }
-      });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (error) {
-        throw new Error(error.message || 'Failed to analyze image');
-      }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[AgriScan] Attempt ${attempt}/${maxRetries} - Sending image to analyze-plant function...`);
+        
+        const { data, error } = await supabase.functions.invoke('analyze-plant', {
+          body: { imageBase64: image }
+        });
 
-      if (data.error && !data.diagnosis) {
-        throw new Error(data.error);
-      }
+        if (error) {
+          console.error(`[AgriScan] Attempt ${attempt} - Function error:`, error);
+          // Check if it's a retriable error (network/service issues)
+          if (error.message?.includes('Failed to send') || error.message?.includes('fetch')) {
+            lastError = new Error('Backend service is temporarily unavailable. Please try again in a moment.');
+            if (attempt < maxRetries) {
+              await new Promise(r => setTimeout(r, 1500 * attempt));
+              continue;
+            }
+          }
+          throw new Error(error.message || 'Failed to analyze image');
+        }
 
-      const diagnosis = data.diagnosis as DiagnosisResult;
-      
-      onScanComplete(diagnosis);
-      
-      // Show appropriate toast based on analysis result
-      if (diagnosis.problemName === "Unable to Analyze" || diagnosis.problemName === "Analysis Error") {
-        toast({
-          title: "Image Issue Detected",
-          description: diagnosis.cause || "Please try uploading a clearer image of the plant.",
-          variant: "destructive",
-        });
-      } else if (diagnosis.problemName === "Healthy Plant") {
-        toast({
-          title: "Good News! 🌿",
-          description: "Your plant appears to be healthy!",
-        });
-      } else {
-        toast({
-          title: "Analysis Complete!",
-          description: `Detected: ${diagnosis.problemName} (${diagnosis.confidence}% confidence)`,
-        });
+        if (data?.error && !data?.diagnosis) {
+          console.error(`[AgriScan] Attempt ${attempt} - API error:`, data.error);
+          throw new Error(data.error);
+        }
+
+        const diagnosis = data.diagnosis as DiagnosisResult;
+        console.log('[AgriScan] Analysis complete:', diagnosis);
+        
+        onScanComplete(diagnosis);
+        
+        // Show appropriate toast based on analysis result
+        if (diagnosis.problemName === "Unable to Analyze" || diagnosis.problemName === "Analysis Error") {
+          toast({
+            title: "Image Issue Detected",
+            description: diagnosis.cause || "Please try uploading a clearer image of the plant.",
+            variant: "destructive",
+          });
+        } else if (diagnosis.problemName === "Healthy Plant") {
+          toast({
+            title: "Good News! 🌿",
+            description: "Your plant appears to be healthy!",
+          });
+        } else {
+          toast({
+            title: "Analysis Complete!",
+            description: `Detected: ${diagnosis.problemName} (${diagnosis.confidence}% confidence)`,
+          });
+        }
+        
+        setIsAnalyzing(false);
+        return; // Success - exit function
+      } catch (error) {
+        console.error(`[AgriScan] Attempt ${attempt} - Caught error:`, error);
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        if (attempt < maxRetries) {
+          console.log(`[AgriScan] Retrying in ${1500 * attempt}ms...`);
+          await new Promise(r => setTimeout(r, 1500 * attempt));
+        }
       }
-    } catch (error) {
-      console.error('Analysis error:', error);
-      toast({
-        title: "Analysis Failed",
-        description: error instanceof Error ? error.message : "Unable to analyze the image. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsAnalyzing(false);
     }
+
+    // All retries failed
+    console.error('[AgriScan] All retry attempts failed:', lastError);
+    toast({
+      title: "Analysis Failed",
+      description: lastError?.message || "Unable to analyze the image. The backend service may be temporarily unavailable. Please try again in a moment.",
+      variant: "destructive",
+    });
+    setIsAnalyzing(false);
   };
 
   return (
