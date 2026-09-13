@@ -33,7 +33,10 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: "AgriScan AI <onboarding@resend.dev>",
-        to: ["support.agriscanai@gmail.com"],
+        // Resend test mode only delivers to the account owner's address.
+        // Once a domain is verified at resend.com/domains, change `from` to that
+        // domain and set this back to support.agriscanai@gmail.com.
+        to: ["sb336584@gmail.com"],
         reply_to: email,
         subject: `New contact message from ${name}`,
         html: `
