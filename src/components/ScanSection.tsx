@@ -324,7 +324,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                         </span>
                       </Button>
                     </label>
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="lg" onClick={openCamera}>
                       <Camera className="w-5 h-5" />
                       Take Photo
                     </Button>
