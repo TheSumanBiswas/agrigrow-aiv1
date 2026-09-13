@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const socialLinks = [
   { icon: Facebook, href: "#", label: "Facebook" },
@@ -21,16 +22,36 @@ const ContactFooter = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const message = formData.get("message") as string;
 
-    toast({
-      title: "Message Sent!",
-      description: "Thank you for reaching out. We'll get back to you soon.",
-    });
+    try {
+      const { error } = await supabase.functions.invoke("send-contact-email", {
+        body: { name, email, message },
+      });
 
-    setIsSubmitting(false);
-    (e.target as HTMLFormElement).reset();
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast({
+        title: "Message Sent!",
+        description: "Thank you for reaching out. We'll get back to you soon.",
+      });
+      form.reset();
+    } catch (err) {
+      console.error("[AgriScan] Contact form error:", err);
+      toast({
+        title: "Could not send message",
+        description: "Something went wrong. Please try again or email us directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -67,6 +88,7 @@ const ContactFooter = () => {
                     <label className="block text-sm font-medium mb-2">Name</label>
                     <Input
                       type="text"
+                      name="name"
                       placeholder="Your name"
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
@@ -76,6 +98,7 @@ const ContactFooter = () => {
                     <label className="block text-sm font-medium mb-2">Email</label>
                     <Input
                       type="email"
+                      name="email"
                       placeholder="your@email.com"
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
@@ -85,6 +108,7 @@ const ContactFooter = () => {
                 <div>
                   <label className="block text-sm font-medium mb-2">Message</label>
                   <Textarea
+                    name="message"
                     placeholder="How can we help you?"
                     rows={5}
                     required
@@ -130,10 +154,10 @@ const ContactFooter = () => {
                     <div>
                       <p className="font-medium">Email</p>
                       <a
-                        href="mailto:support@agriscan.ai"
+                        href="mailto:support.agriscanai@gmail.com"
                         className="text-secondary-foreground/70 hover:text-accent transition-colors"
                       >
-                        support@agriscan.ai
+                        support.agriscanai@gmail.com
                       </a>
                     </div>
                   </div>
@@ -158,8 +182,7 @@ const ContactFooter = () => {
                     <div>
                       <p className="font-medium">Location</p>
                       <p className="text-secondary-foreground/70">
-                        Agricultural Innovation Hub<br />
-                        Silicon Valley, CA
+                        Kolkata
                       </p>
                     </div>
                   </div>
