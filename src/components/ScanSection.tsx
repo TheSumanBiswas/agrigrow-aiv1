@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
+import { Camera, Upload, X, Loader2, ImageIcon, Sparkles, CameraOff } from "lucide-react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,92 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOpen(false);
+  }, []);
+
+  // Clean up camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
+
+  const openCamera = async () => {
+    setCameraError(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera is not supported on this browser.");
+      toast({
+        title: "Camera not supported",
+        description: "Please use the upload option instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCameraOpen(true);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("[AgriScan] Camera access failed:", err);
+      setIsCameraOpen(false);
+      const denied =
+        err instanceof DOMException &&
+        (err.name === "NotAllowedError" || err.name === "SecurityError");
+      toast({
+        title: denied ? "Camera permission denied" : "Camera unavailable",
+        description: denied
+          ? "Please allow camera access in your browser settings, or upload an image instead."
+          : "No camera was found on this device. Please upload an image instead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const capturePhoto = async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    stopCamera();
+
+    // Run the captured frame through the same compression pipeline
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
+    processImage(file);
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -198,7 +283,47 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
             onDrop={handleDrop}
           >
             <AnimatePresence mode="wait">
-              {!image ? (
+              {isCameraOpen ? (
+                <motion.div
+                  key="camera"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-center"
+                >
+                  <div className="relative inline-block mb-6">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="max-w-full max-h-80 rounded-xl shadow-lg bg-black"
+                    />
+                    <button
+                      onClick={stopCamera}
+                      className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                      aria-label="Close camera"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {cameraError && (
+                    <p className="flex items-center justify-center gap-2 text-destructive mb-4">
+                      <CameraOff className="w-4 h-4" />
+                      {cameraError}
+                    </p>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Button variant="scan" size="lg" onClick={capturePhoto} className="min-w-[200px]">
+                      <Camera className="w-5 h-5" />
+                      Capture Photo
+                    </Button>
+                    <Button variant="ghost" size="lg" onClick={stopCamera}>
+                      Cancel
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : !image ? (
                 <motion.div
                   key="upload"
                   initial={{ opacity: 0 }}
@@ -239,7 +364,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                         </span>
                       </Button>
                     </label>
-                    <Button variant="outline" size="lg">
+                    <Button variant="outline" size="lg" onClick={openCamera}>
                       <Camera className="w-5 h-5" />
                       Take Photo
                     </Button>
