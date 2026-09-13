@@ -283,7 +283,47 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
             onDrop={handleDrop}
           >
             <AnimatePresence mode="wait">
-              {!image ? (
+              {isCameraOpen ? (
+                <motion.div
+                  key="camera"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-center"
+                >
+                  <div className="relative inline-block mb-6">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="max-w-full max-h-80 rounded-xl shadow-lg bg-black"
+                    />
+                    <button
+                      onClick={stopCamera}
+                      className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                      aria-label="Close camera"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {cameraError && (
+                    <p className="flex items-center justify-center gap-2 text-destructive mb-4">
+                      <CameraOff className="w-4 h-4" />
+                      {cameraError}
+                    </p>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Button variant="scan" size="lg" onClick={capturePhoto} className="min-w-[200px]">
+                      <Camera className="w-5 h-5" />
+                      Capture Photo
+                    </Button>
+                    <Button variant="ghost" size="lg" onClick={stopCamera}>
+                      Cancel
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : !image ? (
                 <motion.div
                   key="upload"
                   initial={{ opacity: 0 }}
