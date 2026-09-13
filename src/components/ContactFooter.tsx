@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const socialLinks = [
   { icon: Facebook, href: "#", label: "Facebook" },
@@ -87,6 +88,7 @@ const ContactFooter = () => {
                     <label className="block text-sm font-medium mb-2">Name</label>
                     <Input
                       type="text"
+                      name="name"
                       placeholder="Your name"
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
