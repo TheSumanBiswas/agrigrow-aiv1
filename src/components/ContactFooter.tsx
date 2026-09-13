@@ -98,6 +98,7 @@ const ContactFooter = () => {
                     <label className="block text-sm font-medium mb-2">Email</label>
                     <Input
                       type="email"
+                      name="email"
                       placeholder="your@email.com"
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
@@ -107,6 +108,7 @@ const ContactFooter = () => {
                 <div>
                   <label className="block text-sm font-medium mb-2">Message</label>
                   <Textarea
+                    name="message"
                     placeholder="How can we help you?"
                     rows={5}
                     required
@@ -152,10 +154,10 @@ const ContactFooter = () => {
                     <div>
                       <p className="font-medium">Email</p>
                       <a
-                        href="mailto:support@agriscan.ai"
+                        href="mailto:support.agriscanai@gmail.com"
                         className="text-secondary-foreground/70 hover:text-accent transition-colors"
                       >
-                        support@agriscan.ai
+                        support.agriscanai@gmail.com
                       </a>
                     </div>
                   </div>
@@ -180,8 +182,7 @@ const ContactFooter = () => {
                     <div>
                       <p className="font-medium">Location</p>
                       <p className="text-secondary-foreground/70">
-                        Agricultural Innovation Hub<br />
-                        Silicon Valley, CA
+                        Kolkata
                       </p>
                     </div>
                   </div>
