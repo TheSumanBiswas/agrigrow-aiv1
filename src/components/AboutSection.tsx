@@ -20,9 +20,9 @@ const values = [
 ];
 
 const stats = [
-  { value: "10,000+", label: "Diseases Identified" },
+  { value: "1000+", label: "Diseases Identified" },
   { value: "50+", label: "Crop Types Supported" },
-  { value: "1M+", label: "Scans Performed" },
+  { value: "Many Scan Performed", label: "Scans Performed" },
   { value: "95%", label: "Accuracy Rate" },
 ];
 
