@@ -18,10 +18,12 @@ async function callLovableAI({
   lovableKey,
   imageDataUrl,
   imageId,
+  language,
 }: {
   lovableKey: string;
   imageDataUrl: string;
   imageId: string;
+  language: string;
 }) {
   const systemPrompt = `You are an expert agricultural scientist and plant pathologist.
 
@@ -56,7 +58,13 @@ Rules:
 - Be specific to visible symptoms in THIS image.`;
 
   const userPrompt = `Image ID: ${imageId}
-Analyze this plant image. If it is not a clear plant/leaf photo, return Unable to Analyze with the reason and photo retake tips.`;
+Analyze this plant image. If it is not a clear plant/leaf photo, return Unable to Analyze with the reason and photo retake tips.
+
+LANGUAGE REQUIREMENT:
+- "problemName" MUST stay in English exactly as specified above (so the app can recognise it).
+- Additionally return "problemNameLocal": the same problem name written in ${language}.
+- Write "cause", "organicTreatment", "chemicalTreatment" and every item of "preventionTips" in ${language}, in simple farmer-friendly wording.
+- If ${language} is English, "problemNameLocal" is simply the same as "problemName".`;
 
   // Retry a couple times on 429 to reduce "no more errors" experience.
   const maxAttempts = 3;
