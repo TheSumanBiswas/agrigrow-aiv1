@@ -18,10 +18,12 @@ async function callLovableAI({
   lovableKey,
   imageDataUrl,
   imageId,
+  language,
 }: {
   lovableKey: string;
   imageDataUrl: string;
   imageId: string;
+  language: string;
 }) {
   const systemPrompt = `You are an expert agricultural scientist and plant pathologist.
 
@@ -56,7 +58,13 @@ Rules:
 - Be specific to visible symptoms in THIS image.`;
 
   const userPrompt = `Image ID: ${imageId}
-Analyze this plant image. If it is not a clear plant/leaf photo, return Unable to Analyze with the reason and photo retake tips.`;
+Analyze this plant image. If it is not a clear plant/leaf photo, return Unable to Analyze with the reason and photo retake tips.
+
+LANGUAGE REQUIREMENT:
+- "problemName" MUST stay in English exactly as specified above (so the app can recognise it).
+- Additionally return "problemNameLocal": the same problem name written in ${language}.
+- Write "cause", "organicTreatment", "chemicalTreatment" and every item of "preventionTips" in ${language}, in simple farmer-friendly wording.
+- If ${language} is English, "problemNameLocal" is simply the same as "problemName".`;
 
   // Retry a couple times on 429 to reduce "no more errors" experience.
   const maxAttempts = 3;
@@ -137,7 +145,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64 } = await req.json();
+    const { imageBase64, language } = await req.json();
+    const targetLanguage = typeof language === "string" && language.trim() ? language.trim() : "English";
 
     if (!imageBase64 || typeof imageBase64 !== "string") {
       return new Response(JSON.stringify({ error: "No image provided" }), {
@@ -162,6 +171,7 @@ serve(async (req) => {
       lovableKey: LOVABLE_API_KEY,
       imageDataUrl: imageBase64,
       imageId,
+      language: targetLanguage,
     });
 
     if (!ai.ok) {

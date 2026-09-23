@@ -2,17 +2,21 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Leaf, Home, Camera, Info, Users, Mail } from "lucide-react";
 import { Button } from "./ui/button";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/translations";
 
-const navItems = [
-  { name: "Home", href: "#home", icon: Home },
-  { name: "Scan Plant", href: "#scan", icon: Camera },
-  { name: "How It Works", href: "#how-it-works", icon: Info },
-  { name: "About Us", href: "#about", icon: Users },
-  { name: "Contact", href: "#contact", icon: Mail },
+const navItems: { key: TranslationKey; href: string; icon: typeof Home }[] = [
+  { key: "nav.home", href: "#home", icon: Home },
+  { key: "nav.scan", href: "#scan", icon: Camera },
+  { key: "nav.how", href: "#how-it-works", icon: Info },
+  { key: "nav.about", href: "#about", icon: Users },
+  { key: "nav.contact", href: "#contact", icon: Mail },
 ];
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useLanguage();
 
   const scrollToSection = (href: string) => {
     setIsOpen(false);
@@ -61,41 +65,48 @@ const Navbar = () => {
           >
             {navItems.map((item, index) => (
               <motion.button
-                key={item.name}
+                key={item.key}
                 onClick={() => scrollToSection(item.href)}
                 className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200 rounded-lg hover:bg-primary/5"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 * index }}
               >
-                {item.name}
+                {t(item.key)}
               </motion.button>
             ))}
+            <div className="ml-3">
+              <LanguageSwitcher />
+            </div>
             <Button
               variant="nature"
               size="sm"
-              className="ml-4"
+              className="ml-3"
               onClick={() => scrollToSection("#scan")}
             >
               <Camera className="w-4 h-4" />
-              Scan Now
+              {t("nav.scanNow")}
             </Button>
           </motion.div>
 
-          {/* Mobile Menu Button */}
-          <motion.button
-            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-            onClick={() => setIsOpen(!isOpen)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {isOpen ? (
-              <X className="w-6 h-6 text-foreground" />
-            ) : (
-              <Menu className="w-6 h-6 text-foreground" />
-            )}
-          </motion.button>
+          {/* Mobile actions */}
+          <div className="flex items-center gap-2 md:hidden">
+            <LanguageSwitcher />
+            <motion.button
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              onClick={() => setIsOpen(!isOpen)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Menu"
+            >
+              {isOpen ? (
+                <X className="w-6 h-6 text-foreground" />
+              ) : (
+                <Menu className="w-6 h-6 text-foreground" />
+              )}
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -112,7 +123,7 @@ const Navbar = () => {
             <div className="container mx-auto px-4 py-4 space-y-2">
               {navItems.map((item, index) => (
                 <motion.button
-                  key={item.name}
+                  key={item.key}
                   onClick={() => scrollToSection(item.href)}
                   className="flex items-center gap-3 w-full p-3 rounded-xl text-foreground hover:bg-primary/10 hover:text-primary transition-all duration-200"
                   initial={{ opacity: 0, x: -20 }}
@@ -120,9 +131,12 @@ const Navbar = () => {
                   transition={{ duration: 0.3, delay: 0.05 * index }}
                 >
                   <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <span className="font-medium">{t(item.key)}</span>
                 </motion.button>
               ))}
+              <div className="pt-2">
+                <LanguageSwitcher fullWidth />
+              </div>
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -135,7 +149,7 @@ const Navbar = () => {
                   onClick={() => scrollToSection("#scan")}
                 >
                   <Camera className="w-5 h-5" />
-                  Start Scanning
+                  {t("nav.startScanning")}
                 </Button>
               </motion.div>
             </div>
