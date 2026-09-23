@@ -1,34 +1,18 @@
 import { motion } from "framer-motion";
 import { Upload, Scan, FileText, Sparkles } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/translations";
 
-const steps = [
-  {
-    icon: Upload,
-    title: "Upload Image",
-    description: "Take a clear photo of the affected plant leaf or upload from your gallery",
-    color: "primary",
-  },
-  {
-    icon: Scan,
-    title: "AI Scans Leaf",
-    description: "Our advanced AI analyzes the image to detect diseases, pests, or deficiencies",
-    color: "accent",
-  },
-  {
-    icon: FileText,
-    title: "Get Diagnosis",
-    description: "Receive instant, detailed diagnosis with confidence score and causes",
-    color: "sky",
-  },
-  {
-    icon: Sparkles,
-    title: "Apply Treatment",
-    description: "Follow our farmer-friendly treatment suggestions for a healthy harvest",
-    color: "primary",
-  },
+const steps: { icon: typeof Upload; titleKey: TranslationKey; descKey: TranslationKey; color: string }[] = [
+  { icon: Upload, titleKey: "how.s1t", descKey: "how.s1d", color: "primary" },
+  { icon: Scan, titleKey: "how.s2t", descKey: "how.s2d", color: "accent" },
+  { icon: FileText, titleKey: "how.s3t", descKey: "how.s3d", color: "sky" },
+  { icon: Sparkles, titleKey: "how.s4t", descKey: "how.s4d", color: "primary" },
 ];
 
 const HowItWorks = () => {
+  const { t } = useLanguage();
+
   return (
     <section id="how-it-works" className="py-20 md:py-32 bg-background">
       <div className="container mx-auto px-4">
@@ -40,10 +24,10 @@ const HowItWorks = () => {
           className="text-center mb-16"
         >
           <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-            How It <span className="text-gradient-primary">Works</span>
+            {t("how.title1")} <span className="text-gradient-primary">{t("how.title2")}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Get your plant diagnosed in just 4 simple steps. Fast, accurate, and farmer-friendly.
+            {t("how.subtitle")}
           </p>
         </motion.div>
 
@@ -51,7 +35,7 @@ const HowItWorks = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {steps.map((step, index) => (
               <motion.div
-                key={step.title}
+                key={step.titleKey}
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -99,10 +83,10 @@ const HowItWorks = () => {
                   </motion.div>
 
                   <h3 className="font-heading font-semibold text-lg text-foreground mb-2">
-                    {step.title}
+                    {t(step.titleKey)}
                   </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {step.description}
+                    {t(step.descKey)}
                   </p>
                 </div>
               </motion.div>

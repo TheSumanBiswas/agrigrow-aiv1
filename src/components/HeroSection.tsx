@@ -2,14 +2,24 @@ import { motion } from "framer-motion";
 import { Camera, Leaf, Shield, Zap } from "lucide-react";
 import { Button } from "./ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/translations";
 
 const HeroSection = () => {
+  const { t } = useLanguage();
+
   const scrollToScan = () => {
     const element = document.querySelector("#scan");
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
     }
   };
+
+  const features: { icon: typeof Zap; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+    { icon: Zap, titleKey: "hero.f1t", descKey: "hero.f1d" },
+    { icon: Shield, titleKey: "hero.f2t", descKey: "hero.f2d" },
+    { icon: Leaf, titleKey: "hero.f3t", descKey: "hero.f3d" },
+  ];
 
   return (
     <section
@@ -22,9 +32,7 @@ const HeroSection = () => {
         style={{ backgroundImage: `url(${heroBg})` }}
       />
       <div className="absolute inset-0 bg-background/60" />
-      
-      {/* Animated Background Shapes */}
-      
+
       {/* Animated Background Shapes */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Large leaf shapes */}
@@ -89,7 +97,7 @@ const HeroSection = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8"
           >
             <Leaf className="w-4 h-4 text-primary animate-leaf-sway" />
-            <span className="text-sm font-medium text-primary">AI-Powered Plant Health</span>
+            <span className="text-sm font-medium text-primary">{t("hero.badge")}</span>
           </motion.div>
 
           {/* Main Heading */}
@@ -99,8 +107,8 @@ const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight mb-6"
           >
-            Scan Your Crop.{" "}
-            <span className="text-gradient-primary">Save Your Harvest.</span>
+            {t("hero.title1")}{" "}
+            <span className="text-gradient-primary">{t("hero.title2")}</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -110,8 +118,7 @@ const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
           >
-            AI-powered plant health diagnosis in seconds. Identify diseases, pests, 
-            and nutrient deficiencies with just a photo.
+            {t("hero.subtitle")}
           </motion.p>
 
           {/* CTA Buttons */}
@@ -128,7 +135,7 @@ const HeroSection = () => {
               className="group"
             >
               <Camera className="w-5 h-5 transition-transform group-hover:scale-110" />
-              Upload Plant Image
+              {t("hero.cta")}
             </Button>
             <Button
               variant="outline"
@@ -138,7 +145,7 @@ const HeroSection = () => {
                 if (element) element.scrollIntoView({ behavior: "smooth" });
               }}
             >
-              Learn How It Works
+              {t("hero.learn")}
             </Button>
           </motion.div>
 
@@ -149,13 +156,9 @@ const HeroSection = () => {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto"
           >
-            {[
-              { icon: Zap, title: "Instant Results", desc: "Get diagnosis in seconds" },
-              { icon: Shield, title: "Safe Solutions", desc: "Organic & eco-friendly tips" },
-              { icon: Leaf, title: "Expert AI", desc: "Trained on 10,000+ diseases" },
-            ].map((feature, index) => (
+            {features.map((feature, index) => (
               <motion.div
-                key={feature.title}
+                key={feature.titleKey}
                 className="nature-card p-5 text-center group cursor-default"
                 whileHover={{ y: -5 }}
                 initial={{ opacity: 0, y: 20 }}
@@ -165,8 +168,8 @@ const HeroSection = () => {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-3 transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110">
                   <feature.icon className="w-6 h-6" />
                 </div>
-                <h3 className="font-heading font-semibold text-foreground mb-1">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                <h3 className="font-heading font-semibold text-foreground mb-1">{t(feature.titleKey)}</h3>
+                <p className="text-sm text-muted-foreground">{t(feature.descKey)}</p>
               </motion.div>
             ))}
           </motion.div>

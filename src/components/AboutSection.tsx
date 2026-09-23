@@ -1,32 +1,24 @@
 import { motion } from "framer-motion";
 import { Leaf, Heart, Shield, Users, Target, Sprout } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/translations";
 
-const values = [
-  {
-    icon: Heart,
-    title: "Farmer First",
-    description: "Every feature is designed with farmers in mind. Simple, accessible, and practical.",
-  },
-  {
-    icon: Leaf,
-    title: "Sustainable Farming",
-    description: "We prioritize eco-friendly solutions that protect both crops and the environment.",
-  },
-  {
-    icon: Shield,
-    title: "Safe Solutions",
-    description: "Our recommendations follow safe practices to protect human health and nature.",
-  },
-];
-
-const stats = [
-  { value: "1000+", label: "Diseases Identified" },
-  { value: "50+", label: "Crop Types Supported" },
-  { value: "Many Scan Performed", label: "Scans Performed" },
-  { value: "95%", label: "Accuracy Rate" },
+const values: { icon: typeof Heart; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+  { icon: Heart, titleKey: "about.v1t", descKey: "about.v1d" },
+  { icon: Leaf, titleKey: "about.v2t", descKey: "about.v2d" },
+  { icon: Shield, titleKey: "about.v3t", descKey: "about.v3d" },
 ];
 
 const AboutSection = () => {
+  const { t } = useLanguage();
+
+  const stats: { value: string; labelKey: TranslationKey }[] = [
+    { value: "1000+", labelKey: "about.stat1" },
+    { value: "50+", labelKey: "about.stat2" },
+    { value: t("about.stat3v"), labelKey: "about.stat3" },
+    { value: "95%", labelKey: "about.stat4" },
+  ];
+
   return (
     <section id="about" className="py-20 md:py-32 bg-scan-gradient">
       <div className="container mx-auto px-4">
@@ -40,16 +32,14 @@ const AboutSection = () => {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <Users className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">About AgriScan AI</span>
+            <span className="text-sm font-medium text-primary">{t("about.badge")}</span>
           </div>
           <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-            Empowering Farmers with{" "}
-            <span className="text-gradient-primary">AI Technology</span>
+            {t("about.title1")}{" "}
+            <span className="text-gradient-primary">{t("about.title2")}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            AgriScan AI is on a mission to make plant disease diagnosis accessible to every farmer. 
-            Using cutting-edge artificial intelligence, we help protect crops, increase yields, 
-            and promote sustainable farming practices worldwide.
+            {t("about.intro")}
           </p>
         </motion.div>
 
@@ -68,17 +58,15 @@ const AboutSection = () => {
                     <Target className="w-7 h-7 text-primary" />
                   </div>
                   <h3 className="font-heading text-2xl font-bold text-foreground">
-                    Our Mission
+                    {t("about.missionTitle")}
                   </h3>
                 </div>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  We believe that every farmer deserves access to expert-level plant health diagnostics. 
-                  Traditional agricultural support is often expensive, slow, or unavailable in rural areas. 
-                  AgriScan AI bridges this gap by putting the power of AI directly in farmers' hands.
+                  {t("about.missionText")}
                 </p>
                 <div className="flex items-center gap-3 text-primary font-medium">
                   <Sprout className="w-5 h-5" />
-                  <span>Growing a healthier future, one scan at a time</span>
+                  <span>{t("about.missionTag")}</span>
                 </div>
               </div>
 
@@ -101,7 +89,7 @@ const AboutSection = () => {
           >
             {values.map((value, index) => (
               <motion.div
-                key={value.title}
+                key={value.titleKey}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -113,10 +101,10 @@ const AboutSection = () => {
                 </div>
                 <div>
                   <h4 className="font-heading font-semibold text-lg text-foreground mb-1">
-                    {value.title}
+                    {t(value.titleKey)}
                   </h4>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    {value.description}
+                    {t(value.descKey)}
                   </p>
                 </div>
               </motion.div>
@@ -135,7 +123,7 @@ const AboutSection = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {stats.map((stat, index) => (
               <motion.div
-                key={stat.label}
+                key={stat.labelKey}
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -144,7 +132,7 @@ const AboutSection = () => {
                 <div className="font-heading text-3xl md:text-4xl font-bold text-gradient-primary mb-2">
                   {stat.value}
                 </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-sm text-muted-foreground">{t(stat.labelKey)}</div>
               </motion.div>
             ))}
           </div>
