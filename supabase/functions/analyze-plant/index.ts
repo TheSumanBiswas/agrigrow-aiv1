@@ -145,7 +145,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64 } = await req.json();
+    const { imageBase64, language } = await req.json();
+    const targetLanguage = typeof language === "string" && language.trim() ? language.trim() : "English";
 
     if (!imageBase64 || typeof imageBase64 !== "string") {
       return new Response(JSON.stringify({ error: "No image provided" }), {
@@ -170,6 +171,7 @@ serve(async (req) => {
       lovableKey: LOVABLE_API_KEY,
       imageDataUrl: imageBase64,
       imageId,
+      language: targetLanguage,
     });
 
     if (!ai.ok) {
