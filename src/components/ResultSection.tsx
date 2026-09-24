@@ -2,16 +2,19 @@ import { motion } from "framer-motion";
 import { AlertTriangle, Leaf, Shield, CheckCircle, Beaker, Info, Camera, XCircle } from "lucide-react";
 import { DiagnosisResult } from "./ScanSection";
 import { Button } from "./ui/button";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 interface ResultSectionProps {
   result: DiagnosisResult | null;
 }
 
 const ResultSection = ({ result }: ResultSectionProps) => {
+  const { t } = useLanguage();
   if (!result) return null;
 
   const isUnableToAnalyze = result.problemName === "Unable to Analyze" || result.problemName === "Analysis Error";
   const isHealthyPlant = result.problemName === "Healthy Plant";
+  const displayName = result.problemNameLocal || result.problemName;
 
   const getSeverityColor = (severity: string) => {
     if (isUnableToAnalyze) {
@@ -45,6 +48,19 @@ const ResultSection = ({ result }: ResultSectionProps) => {
     }
   };
 
+  const severityLabel = () => {
+    switch (result.severity) {
+      case "low":
+        return t("results.severityLow");
+      case "medium":
+        return t("results.severityMedium");
+      case "high":
+        return t("results.severityHigh");
+      default:
+        return "";
+    }
+  };
+
   const SeverityIcon = getSeverityIcon(result.severity);
 
   const scrollToScan = () => {
@@ -64,13 +80,10 @@ const ResultSection = ({ result }: ResultSectionProps) => {
           className="text-center mb-12"
         >
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Diagnosis <span className="text-gradient-primary">Results</span>
+            {t("results.title1")} <span className="text-gradient-primary">{t("results.title2")}</span>
           </h2>
           <p className="text-lg text-muted-foreground">
-            {isUnableToAnalyze 
-              ? "We need a better image to analyze your plant"
-              : "Here's what we found and how you can treat it"
-            }
+            {isUnableToAnalyze ? t("results.subtitleBad") : t("results.subtitleOk")}
           </p>
         </motion.div>
 
@@ -99,19 +112,19 @@ const ResultSection = ({ result }: ResultSectionProps) => {
               <div className="flex-grow">
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <h3 className="font-heading text-xl md:text-2xl font-bold text-foreground">
-                    {result.problemName}
+                    {displayName}
                   </h3>
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${getSeverityColor(result.severity)}`}>
                     <SeverityIcon className="w-4 h-4" />
-                    {isUnableToAnalyze ? "Image Issue" : `${result.severity.charAt(0).toUpperCase() + result.severity.slice(1)} Severity`}
+                    {isUnableToAnalyze ? t("results.imageIssue") : severityLabel()}
                   </span>
                 </div>
-                
+
                 {/* Confidence Bar - Hide for unable to analyze */}
                 {!isUnableToAnalyze && (
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Confidence Level</span>
+                      <span className="text-muted-foreground">{t("results.confidence")}</span>
                       <span className="font-semibold text-primary">{result.confidence}%</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -130,7 +143,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                   <div className="mt-4">
                     <Button variant="nature" onClick={scrollToScan}>
                       <Camera className="w-4 h-4" />
-                      Take New Photo
+                      {t("results.newPhoto")}
                     </Button>
                   </div>
                 )}
@@ -151,7 +164,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
               </div>
               <div>
                 <h4 className="font-heading font-semibold text-lg text-foreground mb-2">
-                  {isUnableToAnalyze ? "📷 What Went Wrong" : "⚠️ Cause"}
+                  {isUnableToAnalyze ? t("results.wentWrong") : t("results.cause")}
                 </h4>
                 <p className="text-muted-foreground leading-relaxed">
                   {result.cause}
@@ -175,7 +188,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                     <Leaf className="w-5 h-5 text-primary" />
                   </div>
                   <h4 className="font-heading font-semibold text-lg text-foreground">
-                    🌿 Organic Treatment
+                    {t("results.organic")}
                   </h4>
                 </div>
                 <p className="text-muted-foreground leading-relaxed">
@@ -195,7 +208,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                     <Beaker className="w-5 h-5 text-sky" />
                   </div>
                   <h4 className="font-heading font-semibold text-lg text-foreground">
-                    💊 Chemical Treatment
+                    {t("results.chemical")}
                   </h4>
                 </div>
                 <p className="text-muted-foreground leading-relaxed">
@@ -217,7 +230,7 @@ const ResultSection = ({ result }: ResultSectionProps) => {
                 <Shield className="w-5 h-5 text-primary" />
               </div>
               <h4 className="font-heading font-semibold text-lg text-foreground">
-                {isUnableToAnalyze ? "📸 Tips for Better Photos" : "🛡️ Prevention Tips"}
+                {isUnableToAnalyze ? t("results.photoTips") : t("results.prevention")}
               </h4>
             </div>
             <ul className="space-y-3">
