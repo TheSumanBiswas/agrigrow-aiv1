@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { fileToCompressedDataUrl } from "@/lib/image/resizeImage";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 interface ScanSectionProps {
   onScanComplete: (result: DiagnosisResult) => void;
@@ -12,6 +13,7 @@ interface ScanSectionProps {
 
 export interface DiagnosisResult {
   problemName: string;
+  problemNameLocal?: string;
   confidence: number;
   cause: string;
   organicTreatment: string;
@@ -29,10 +31,11 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+  const { t, aiLanguageName } = useLanguage();
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((tr) => tr.stop());
       streamRef.current = null;
     }
     if (videoRef.current) {
@@ -45,7 +48,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current.getTracks().forEach((tr) => tr.stop());
       }
     };
   }, []);
@@ -54,10 +57,10 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
     setCameraError(null);
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("Camera is not supported on this browser.");
+      setCameraError(t("scan.noSupportErr"));
       toast({
-        title: "Camera not supported",
-        description: "Please use the upload option instead.",
+        title: t("scan.noSupportTitle"),
+        description: t("scan.noSupportDesc"),
         variant: "destructive",
       });
       return;
@@ -82,10 +85,8 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
         err instanceof DOMException &&
         (err.name === "NotAllowedError" || err.name === "SecurityError");
       toast({
-        title: denied ? "Camera permission denied" : "Camera unavailable",
-        description: denied
-          ? "Please allow camera access in your browser settings, or upload an image instead."
-          : "No camera was found on this device. Please upload an image instead.",
+        title: denied ? t("scan.deniedTitle") : t("scan.unavailableTitle"),
+        description: denied ? t("scan.deniedDesc") : t("scan.unavailableDesc"),
         variant: "destructive",
       });
     }
@@ -129,12 +130,12 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
       processImage(file);
     } else {
       toast({
-        title: "Invalid file type",
-        description: "Please upload a JPG or PNG image.",
+        title: t("scan.invalidTitle"),
+        description: t("scan.invalidDesc"),
         variant: "destructive",
       });
     }
-  }, []);
+  }, [t]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,7 +147,6 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
   const processImage = async (file: File) => {
     try {
       // Reduce payload size to prevent browser/network failures when invoking the backend function.
-      // This keeps uploads snappy and avoids "Failed to fetch" caused by very large base64 bodies.
       const compressed = await fileToCompressedDataUrl(file, {
         maxSize: 1280,
         mimeType: "image/jpeg",
@@ -156,8 +156,8 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
     } catch (e) {
       console.error("Image processing failed:", e);
       toast({
-        title: "Image processing failed",
-        description: "Please try a different image.",
+        title: t("scan.processFailTitle"),
+        description: t("scan.processFailDesc"),
         variant: "destructive",
       });
     }
@@ -178,22 +178,21 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`[AgriScan] Attempt ${attempt}/${maxRetries} - Sending image to analyze-plant function...`);
-        
+
         const { data, error } = await supabase.functions.invoke('analyze-plant', {
-          body: { imageBase64: image }
+          body: { imageBase64: image, language: aiLanguageName }
         });
 
         if (error) {
           console.error(`[AgriScan] Attempt ${attempt} - Function error:`, error);
-          // Check if it's a retriable error (network/service issues)
           if (error.message?.includes('Failed to send') || error.message?.includes('fetch')) {
-            lastError = new Error('Backend service is temporarily unavailable. Please try again in a moment.');
+            lastError = new Error(t("scan.failDesc"));
             if (attempt < maxRetries) {
               await new Promise(r => setTimeout(r, 1500 * attempt));
               continue;
             }
           }
-          throw new Error(error.message || 'Failed to analyze image');
+          throw new Error(error.message || t("scan.failDesc"));
         }
 
         if (data?.error && !data?.diagnosis) {
@@ -203,34 +202,35 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
 
         const diagnosis = data.diagnosis as DiagnosisResult;
         console.log('[AgriScan] Analysis complete:', diagnosis);
-        
+
         onScanComplete(diagnosis);
-        
-        // Show appropriate toast based on analysis result
+
+        const displayName = diagnosis.problemNameLocal || diagnosis.problemName;
+
         if (diagnosis.problemName === "Unable to Analyze" || diagnosis.problemName === "Analysis Error") {
           toast({
-            title: "Image Issue Detected",
-            description: diagnosis.cause || "Please try uploading a clearer image of the plant.",
+            title: t("scan.issueTitle"),
+            description: diagnosis.cause || t("scan.issueDesc"),
             variant: "destructive",
           });
         } else if (diagnosis.problemName === "Healthy Plant") {
           toast({
-            title: "Good News! 🌿",
-            description: "Your plant appears to be healthy!",
+            title: t("scan.healthyTitle"),
+            description: t("scan.healthyDesc"),
           });
         } else {
           toast({
-            title: "Analysis Complete!",
-            description: `Detected: ${diagnosis.problemName} (${diagnosis.confidence}% confidence)`,
+            title: t("scan.completeTitle"),
+            description: `${displayName} — ${diagnosis.confidence}%`,
           });
         }
-        
+
         setIsAnalyzing(false);
         return; // Success - exit function
       } catch (error) {
         console.error(`[AgriScan] Attempt ${attempt} - Caught error:`, error);
         lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+
         if (attempt < maxRetries) {
           console.log(`[AgriScan] Retrying in ${1500 * attempt}ms...`);
           await new Promise(r => setTimeout(r, 1500 * attempt));
@@ -241,8 +241,8 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
     // All retries failed
     console.error('[AgriScan] All retry attempts failed:', lastError);
     toast({
-      title: "Analysis Failed",
-      description: lastError?.message || "Unable to analyze the image. The backend service may be temporarily unavailable. Please try again in a moment.",
+      title: t("scan.failTitle"),
+      description: lastError?.message || t("scan.failDesc"),
       variant: "destructive",
     });
     setIsAnalyzing(false);
@@ -259,11 +259,10 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
           className="text-center mb-12"
         >
           <h2 className="font-heading text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-            Scan Your <span className="text-gradient-primary">Plant</span>
+            {t("scan.title1")} <span className="text-gradient-primary">{t("scan.title2")}</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Upload or capture a photo of your plant leaf. Our AI will analyze it
-            and provide instant diagnosis.
+            {t("scan.subtitle")}
           </p>
         </motion.div>
 
@@ -302,7 +301,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                     <button
                       onClick={stopCamera}
                       className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
-                      aria-label="Close camera"
+                      aria-label={t("scan.closeCamera")}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -316,10 +315,10 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button variant="scan" size="lg" onClick={capturePhoto} className="min-w-[200px]">
                       <Camera className="w-5 h-5" />
-                      Capture Photo
+                      {t("scan.capture")}
                     </Button>
                     <Button variant="ghost" size="lg" onClick={stopCamera}>
-                      Cancel
+                      {t("scan.cancel")}
                     </Button>
                   </div>
                 </motion.div>
@@ -343,10 +342,10 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                   </div>
 
                   <h3 className="font-heading font-semibold text-xl text-foreground mb-2">
-                    Drop your plant image here
+                    {t("scan.drop")}
                   </h3>
                   <p className="text-muted-foreground mb-6">
-                    or click to browse • Supports JPG, PNG
+                    {t("scan.browse")}
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -360,13 +359,13 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                       <Button variant="nature" size="lg" asChild>
                         <span>
                           <Upload className="w-5 h-5" />
-                          Upload Image
+                          {t("scan.upload")}
                         </span>
                       </Button>
                     </label>
                     <Button variant="outline" size="lg" onClick={openCamera}>
                       <Camera className="w-5 h-5" />
-                      Take Photo
+                      {t("scan.take")}
                     </Button>
                   </div>
                 </motion.div>
@@ -381,7 +380,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                   <div className="relative inline-block mb-6">
                     <img
                       src={image}
-                      alt="Plant preview"
+                      alt={t("scan.previewAlt")}
                       className="max-w-full max-h-80 rounded-xl shadow-lg"
                     />
                     <button
@@ -407,7 +406,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="bg-background/90 backdrop-blur-sm rounded-xl px-6 py-4 flex items-center gap-3">
                             <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                            <span className="font-medium text-foreground">Analyzing plant...</span>
+                            <span className="font-medium text-foreground">{t("scan.analyzingPlant")}</span>
                           </div>
                         </div>
                       </motion.div>
@@ -425,12 +424,12 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                       {isAnalyzing ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Analyzing...
+                          {t("scan.analyzing")}
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-5 h-5" />
-                          Analyze Plant
+                          {t("scan.analyze")}
                         </>
                       )}
                     </Button>
@@ -440,7 +439,7 @@ const ScanSection = ({ onScanComplete }: ScanSectionProps) => {
                       onClick={clearImage}
                       disabled={isAnalyzing}
                     >
-                      Choose Different Image
+                      {t("scan.different")}
                     </Button>
                   </div>
                 </motion.div>
