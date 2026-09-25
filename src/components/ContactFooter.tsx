@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 const socialLinks = [
   { icon: Facebook, href: "#", label: "Facebook" },
@@ -17,6 +18,7 @@ const socialLinks = [
 const ContactFooter = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,15 +40,15 @@ const ContactFooter = () => {
       }
 
       toast({
-        title: "Message Sent!",
-        description: "Thank you for reaching out. We'll get back to you soon.",
+        title: t("contact.sentTitle"),
+        description: t("contact.sentDesc"),
       });
       form.reset();
     } catch (err) {
       console.error("[AgriScan] Contact form error:", err);
       toast({
-        title: "Could not send message",
-        description: "Something went wrong. Please try again or email us directly.",
+        title: t("contact.failTitle"),
+        description: t("contact.failDesc"),
         variant: "destructive",
       });
     } finally {
@@ -67,10 +69,10 @@ const ContactFooter = () => {
             className="text-center mb-16"
           >
             <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">
-              Get In <span className="text-accent">Touch</span>
+              {t("contact.title1")} <span className="text-accent">{t("contact.title2")}</span>
             </h2>
             <p className="text-secondary-foreground/70 max-w-2xl mx-auto">
-              Have questions or need support? We're here to help farmers succeed.
+              {t("contact.subtitle")}
             </p>
           </motion.div>
 
@@ -85,31 +87,31 @@ const ContactFooter = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Name</label>
+                    <label className="block text-sm font-medium mb-2">{t("contact.name")}</label>
                     <Input
                       type="text"
                       name="name"
-                      placeholder="Your name"
+                      placeholder={t("contact.namePh")}
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Email</label>
+                    <label className="block text-sm font-medium mb-2">{t("contact.email")}</label>
                     <Input
                       type="email"
                       name="email"
-                      placeholder="your@email.com"
+                      placeholder={t("contact.emailPh")}
                       required
                       className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Message</label>
+                  <label className="block text-sm font-medium mb-2">{t("contact.message")}</label>
                   <Textarea
                     name="message"
-                    placeholder="How can we help you?"
+                    placeholder={t("contact.messagePh")}
                     rows={5}
                     required
                     className="bg-secondary-light/20 border-secondary-light/30 text-secondary-foreground placeholder:text-secondary-foreground/50 resize-none"
@@ -123,11 +125,11 @@ const ContactFooter = () => {
                   className="w-full sm:w-auto"
                 >
                   {isSubmitting ? (
-                    "Sending..."
+                    t("contact.sending")
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      Send Message
+                      {t("contact.send")}
                     </>
                   )}
                 </Button>
@@ -144,7 +146,7 @@ const ContactFooter = () => {
             >
               <div>
                 <h3 className="font-heading font-semibold text-xl mb-6">
-                  Contact Information
+                  {t("contact.infoTitle")}
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
@@ -152,7 +154,7 @@ const ContactFooter = () => {
                       <Mail className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium">Email</p>
+                      <p className="font-medium">{t("contact.email")}</p>
                       <a
                         href="mailto:support.agriscanai@gmail.com"
                         className="text-secondary-foreground/70 hover:text-accent transition-colors"
@@ -166,7 +168,7 @@ const ContactFooter = () => {
                       <Phone className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium">Phone</p>
+                      <p className="font-medium">{t("contact.phone")}</p>
                       <a
                         href="tel:+1234567890"
                         className="text-secondary-foreground/70 hover:text-accent transition-colors"
@@ -180,9 +182,9 @@ const ContactFooter = () => {
                       <MapPin className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <p className="font-medium">Location</p>
+                      <p className="font-medium">{t("contact.location")}</p>
                       <p className="text-secondary-foreground/70">
-                        Kolkata
+                        {t("contact.locationValue")}
                       </p>
                     </div>
                   </div>
@@ -191,7 +193,7 @@ const ContactFooter = () => {
 
               {/* Social Links */}
               <div>
-                <h4 className="font-medium mb-4">Follow Us</h4>
+                <h4 className="font-medium mb-4">{t("contact.follow")}</h4>
                 <div className="flex gap-3">
                   {socialLinks.map((social) => (
                     <motion.a
@@ -226,16 +228,16 @@ const ContactFooter = () => {
 
             {/* Copyright */}
             <p className="text-sm text-secondary-foreground/60 text-center">
-              © {new Date().getFullYear()} AgriScan AI – Empowering Farmers with AI
+              © {new Date().getFullYear()} {t("contact.copyright")}
             </p>
 
             {/* Links */}
             <div className="flex gap-6 text-sm">
               <a href="#" className="text-secondary-foreground/60 hover:text-accent transition-colors">
-                Privacy Policy
+                {t("contact.privacy")}
               </a>
               <a href="#" className="text-secondary-foreground/60 hover:text-accent transition-colors">
-                Terms of Service
+                {t("contact.terms")}
               </a>
             </div>
           </div>
