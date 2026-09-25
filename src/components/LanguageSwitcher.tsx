@@ -31,7 +31,7 @@ const LanguageSwitcher = ({ className = "", fullWidth = false }: LanguageSwitche
           <span className="font-medium">{current.native}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-[60] min-w-[180px] bg-popover">
+      <DropdownMenuContent align="end" className="z-[60] min-w-[180px] max-h-[60vh] overflow-y-auto bg-popover">
         {languages.map((l) => (
           <DropdownMenuItem
             key={l.code}
