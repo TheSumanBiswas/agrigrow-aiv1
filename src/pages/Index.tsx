@@ -7,6 +7,7 @@ import ResultSection from "@/components/ResultSection";
 import HowItWorks from "@/components/HowItWorks";
 import AboutSection from "@/components/AboutSection";
 import ContactFooter from "@/components/ContactFooter";
+import ChatWidget from "@/components/ChatWidget";
 
 const Index = () => {
   const [scanResult, setScanResult] = useState<DiagnosisResult | null>(null);
@@ -47,6 +48,7 @@ const Index = () => {
           <AboutSection />
         </main>
         <ContactFooter />
+        <ChatWidget />
       </div>
     </>
   );
