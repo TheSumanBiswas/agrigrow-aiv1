@@ -20,7 +20,9 @@ const ChatWidget = () => {
   ]);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, open]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
 
   const send = async () => {
     const text = input.trim();
