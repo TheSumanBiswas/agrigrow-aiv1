@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageCircle, X, Send, Sprout, Loader2 } from "lucide-react";
+import { X, Send, Loader2, Mic, MicOff } from "lucide-react";
+import botLogo from "@/assets/chatbot-logo.png";
+import { languages, LangCode } from "@/i18n/translations";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -10,8 +12,43 @@ type Msg = { role: "user" | "assistant"; content: string };
 const URL = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/agri-chat`;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+const SPEECH: Record<LangCode, string> = {
+  en: "en-IN", hi: "hi-IN", bn: "bn-IN", es: "es-ES", ta: "ta-IN", te: "te-IN", mr: "mr-IN", gu: "gu-IN",
+  kn: "kn-IN", ml: "ml-IN", pa: "pa-IN", or: "or-IN", as: "as-IN", ur: "ur-IN",
+};
+
 const ChatWidget = () => {
-  const { aiLanguageName } = useLanguage();
+  const { aiLanguageName, lang } = useLanguage();
+  const [voiceLang, setVoiceLang] = useState<LangCode>(lang);
+  const [listening, setListening] = useState(false);
+  const [voiceMsg, setVoiceMsg] = useState("");
+  const recRef = useRef<any>(null);
+  useEffect(() => { setVoiceLang(lang); }, [lang]);
+
+  const toggleMic = () => {
+    if (listening) { recRef.current?.stop(); return; }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { setVoiceMsg("Voice input isn't supported in this browser. Try Chrome."); return; }
+    const rec = new SR();
+    rec.lang = SPEECH[voiceLang];
+    rec.interimResults = true;
+    rec.continuous = false;
+    const base = input ? input.trim() + " " : "";
+    rec.onresult = (e: any) => {
+      let t = "";
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      setInput(base + t);
+    };
+    rec.onerror = (e: any) => {
+      setVoiceMsg(e.error === "not-allowed" ? "Please allow microphone access to speak." :
+        e.error === "no-speech" ? "Didn't hear anything. Tap the mic and try again." : "Couldn't hear you. Please try again.");
+    };
+    rec.onend = () => setListening(false);
+    recRef.current = rec;
+    setVoiceMsg("");
+    setListening(true);
+    rec.start();
+  };
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,8 +124,8 @@ const ChatWidget = () => {
             className="fixed bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-96 h-[70vh] max-h-[560px] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
           >
             <div className="flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground">
-              <div className="w-9 h-9 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-                <Sprout className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center overflow-hidden">
+                <img src={botLogo} alt="" width={36} height={36} className="w-9 h-9 object-contain" />
               </div>
               <div className="flex-1">
                 <p className="font-semibold leading-tight">Farming Assistant</p>
@@ -122,9 +159,22 @@ const ChatWidget = () => {
               <div ref={endRef} />
             </div>
 
+            <div className="flex items-center gap-2 px-3 pt-2 bg-card text-xs text-muted-foreground border-t border-border">
+              <label htmlFor="voice-lang">🎙️ Speak in:</label>
+              <select
+                id="voice-lang"
+                value={voiceLang}
+                onChange={(e) => setVoiceLang(e.target.value as LangCode)}
+                className="rounded-md border border-input bg-background px-2 py-1 text-foreground"
+              >
+                {languages.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
+              </select>
+              {listening && <span className="text-primary font-medium animate-pulse">Listening...</span>}
+            </div>
+            {voiceMsg && <p className="px-3 pt-1 text-xs text-destructive bg-card">{voiceMsg}</p>}
             <form
               onSubmit={(e) => { e.preventDefault(); send(); }}
-              className="flex items-end gap-2 p-3 border-t border-border bg-card"
+              className="flex items-end gap-2 p-3 bg-card"
             >
               <textarea
                 value={input}
@@ -135,6 +185,15 @@ const ChatWidget = () => {
                 placeholder="Type your question..."
                 className="flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring max-h-28"
               />
+              <Button
+                type="button"
+                size="icon"
+                variant={listening ? "destructive" : "outline"}
+                onClick={toggleMic}
+                aria-label={listening ? "Stop listening" : "Speak your question"}
+              >
+                {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
               <Button type="submit" size="icon" disabled={loading || !input.trim()} aria-label="Send">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
@@ -148,9 +207,9 @@ const ChatWidget = () => {
         whileTap={{ scale: 0.95 }}
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Close farming assistant" : "Open farming assistant"}
-        className="fixed bottom-5 right-4 sm:right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center"
+        className="fixed bottom-5 right-4 sm:right-6 z-50 w-16 h-16 rounded-full bg-card border-2 border-primary shadow-xl flex items-center justify-center overflow-hidden"
       >
-        {open ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        {open ? <X className="w-6 h-6 text-primary" /> : <img src={botLogo} alt="" width={56} height={56} className="w-14 h-14 object-contain" />}
       </motion.button>
     </>
   );
