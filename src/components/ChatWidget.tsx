@@ -74,7 +74,7 @@ const ChatWidget = () => {
       const res = await fetch(URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` },
-        body: JSON.stringify({ messages: history.slice(1).slice(-20), language: aiLanguageName }),
+        body: JSON.stringify({ messages: history.slice(1).slice(-20), language: languages.find((l) => l.code === voiceLang)?.aiName ?? aiLanguageName }),
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
